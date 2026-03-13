@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Virtual Keyboard Pro</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00e5ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="VKeyboard">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;
+  --surface:#161b22;
+  --surface2:#1c2128;
+  --border:#30363d;
+  --accent:#00e5ff;
+  --accent-dim:rgba(0,229,255,0.15);
+  --accent2:#ff6b35;
+  --green:#39d353;
+  --text:#c9d1d9;
+  --text2:#8b949e;
+  --key-bg:#21262d;
+  --key-border:#444c56;
+  --key-shadow:rgba(0,0,0,0.5);
+  --key-pressed:#00e5ff;
+  --notif-h:48px;
+}
+
+html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'JetBrains Mono',monospace;color:var(--text);touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none}
+
+/* ── NOTIFICATION BAR ── */
+#notif-bar{
+  position:fixed;top:0;left:0;right:0;height:var(--notif-h);
+  background:linear-gradient(135deg,#0d1117 0%,#161b22 100%);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;z-index:1000;
+  box-shadow:0 2px 12px rgba(0,0,0,0.4);
+  cursor:pointer;
+  transition:background 0.2s;
+}
+#notif-bar:hover,#notif-bar:active{background:linear-gradient(135deg,#161b22,#1c2128)}
+#notif-left{display:flex;align-items:center;gap:10px}
+#notif-icon{
+  width:28px;height:28px;border-radius:8px;
+  background:linear-gradient(135deg,var(--accent),#0097a7);
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+  box-shadow:0 0 10px rgba(0,229,255,0.4);
+}
+#notif-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--accent);letter-spacing:0.5px}
+#notif-sub{font-size:10px;color:var(--text2);margin-top:1px}
+#notif-toggle{
+  display:flex;align-items:center;gap:6px;
+  background:var(--accent-dim);border:1px solid rgba(0,229,255,0.3);
+  border-radius:20px;padding:4px 12px;
+  font-size:11px;color:var(--accent);font-family:'JetBrains Mono',monospace;
+  cursor:pointer;transition:all 0.2s;
+}
+#notif-toggle:hover{background:rgba(0,229,255,0.25);box-shadow:0 0 10px rgba(0,229,255,0.2)}
+#toggle-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
+#toggle-dot.off{background:var(--text2);box-shadow:none}
+
+/* ── MAIN CONTENT ── */
+#app{
+  position:fixed;top:var(--notif-h);left:0;right:0;bottom:0;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+
+/* ── TEXT OUTPUT AREA ── */
+#output-area{
+  flex:1;padding:12px 16px;overflow-y:auto;
+  background:var(--bg);
+  display:flex;flex-direction:column;gap:8px;
+}
+#output-header{display:flex;align-items:center;justify-content:space-between}
+#output-label{font-size:10px;color:var(--text2);letter-spacing:2px;text-transform:uppercase}
+#clear-btn{
+  font-size:10px;color:var(--accent2);border:1px solid rgba(255,107,53,0.3);
+  border-radius:4px;padding:2px 8px;cursor:pointer;background:transparent;font-family:inherit;
+  transition:all 0.2s;
+}
+#clear-btn:hover{background:rgba(255,107,53,0.1)}
+#text-display{
+  flex:1;background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.6;
+  color:var(--text);word-break:break-all;overflow-y:auto;min-height:40px;
+  position:relative;white-space:pre-wrap;
+}
+#cursor-blink{
+  display:inline-block;width:2px;height:1em;background:var(--accent);
+  vertical-align:text-bottom;margin-left:1px;
+  animation:blink 1s step-end infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+#key-log{font-size:10px;color:var(--text2);height:20px;overflow:hidden}
+.key-badge{
+  display:inline-block;background:var(--surface2);border:1px solid var(--border);
+  border-radius:3px;padding:1px 5px;margin:0 2px;font-size:10px;color:var(--text);
+}
+
+/* ── KEYBOARD PANEL ── */
+#kb-panel{
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  padding:8px 6px 10px;
+  flex-shrink:0;
+  transition:transform 0.35s cubic-bezier(0.4,0,0.2,1),opacity 0.35s;
+}
+#kb-panel.hidden{transform:translateY(100%);opacity:0;pointer-events:none}
+
+.kb-section{display:flex;flex-direction:column;gap:4px}
+.kb-row{display:flex;gap:3px;justify-content:center}
+
+/* ── KEYS ── */
+.k{
+  height:36px;min-width:30px;padding:0 4px;
+  background:linear-gradient(180deg,#2d333b 0%,var(--key-bg) 100%);
+  border:1px solid var(--key-border);
+  border-bottom:3px solid #0d1117;
+  border-radius:5px;
+  color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;
+  transition:all 0.08s ease;
+  position:relative;
+  text-align:center;line-height:1.2;
+  box-shadow:0 2px 4px var(--key-shadow);
+}
+.k:hover{background:linear-gradient(180deg,#373e47,#2d333b);border-color:#6e7681}
+.k:active,.k.pressed{
+  background:linear-gradient(180deg,rgba(0,229,255,0.3),rgba(0,229,255,0.15));
+  border-color:var(--accent);border-bottom-width:1px;
+  transform:translateY(2px);
+  box-shadow:0 0 8px rgba(0,229,255,0.3);
+  color:var(--accent);
+}
+.k.active-mod{
+  background:linear-gradient(180deg,rgba(0,229,255,0.25),rgba(0,229,255,0.1));
+  border-color:var(--accent);color:var(--accent);
+  box-shadow:0 0 6px rgba(0,229,255,0.2);
+}
+.k .top{font-size:9px;color:var(--text2);line-height:1}
+.k .bot{font-size:11px;font-weight:600;line-height:1}
+.k.fn-key{color:var(--text2);font-size:9px}
+.k.fn-key:active,.k.fn-key.pressed{color:var(--accent)}
+.k.space{flex:1;max-width:200px}
+.k.mod{background:linear-gradient(180deg,#2d333b,#1c2128)}
+.k.enter{background:linear-gradient(180deg,rgba(57,211,83,0.2),rgba(57,211,83,0.08));border-color:rgba(57,211,83,0.3);color:var(--green)}
+.k.enter:active{background:rgba(57,211,83,0.3);border-color:var(--green)}
+.k.backspace{color:var(--accent2)}
+.k.backspace:active{background:rgba(255,107,53,0.2);border-color:var(--accent2);color:var(--accent2)}
+
+/* Width helpers */
+.w-1  {width:30px}
+.w-1h {width:45px}
+.w-2  {width:48px}
+.w-2h {width:63px}
+.w-3  {width:66px}
+.w-4  {width:84px}
+.w-5  {width:90px}
+.w-6  {width:120px}
+.w-tall{height:76px} /* numpad 0 tall key */
+
+/* ── TABS ── */
+#kb-tabs{display:flex;gap:4px;margin-bottom:6px;padding:0 2px}
+.tab-btn{
+  font-size:10px;padding:4px 10px;border-radius:4px;cursor:pointer;
+  background:transparent;border:1px solid var(--border);color:var(--text2);
+  font-family:'JetBrains Mono',monospace;transition:all 0.15s;
+}
+.tab-btn.active{background:var(--accent-dim);border-color:rgba(0,229,255,0.4);color:var(--accent)}
+
+.kb-view{display:none}
+.kb-view.active{display:block}
+
+/* ── INSTALL BANNER ── */
+#install-banner{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  background:linear-gradient(135deg,#1c2128,#161b22);
+  border-top:1px solid rgba(0,229,255,0.3);
+  padding:12px 16px;z-index:2000;
+  flex-direction:row;align-items:center;justify-content:space-between;gap:12px;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.5);
+}
+#install-banner.show{display:flex}
+.install-text{font-size:12px;color:var(--text)}
+.install-text strong{color:var(--accent);display:block;margin-bottom:2px}
+.install-btns{display:flex;gap:8px}
+.btn-install{
+  background:linear-gradient(135deg,var(--accent),#0097a7);
+  border:none;border-radius:6px;padding:7px 14px;
+  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;
+  color:#0d1117;cursor:pointer;white-space:nowrap;
+}
+.btn-dismiss{background:transparent;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);cursor:pointer}
+
+/* scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+@media(max-width:600px){
+  .k{height:32px;font-size:10px}
+  .kb-row{gap:2px}
+  #kb-panel{padding:6px 4px 8px}
+}
+</style>
+</head>
+<body>
+
+<!-- NOTIFICATION BAR (always visible) -->
+<div id="notif-bar" onclick="toggleKeyboard()">
+  <div id="notif-left">
+    <div id="notif-icon">⌨️</div>
+    <div>
+      <div id="notif-title">VIRTUAL KEYBOARD PRO</div>
+      <div id="notif-sub">Bàn phím PC ảo · Nhấn để bật/tắt</div>
+    </div>
+  </div>
+  <div id="notif-toggle">
+    <div id="toggle-dot"></div>
+    <span id="toggle-label">BẬT</span>
+  </div>
+</div>
+
+<!-- APP BODY -->
+<div id="app">
+  <div id="output-area">
+    <div id="output-header">
+      <span id="output-label">📝 Văn bản đầu ra</span>
+      <button id="clear-btn" onclick="clearText()">✕ Xóa</button>
+    </div>
+    <div id="text-display"><span id="text-content"></span><span id="cursor-blink"></span></div>
+    <div id="key-log">Nhấn phím để gõ...</div>
+  </div>
+
+  <!-- KEYBOARD PANEL -->
+  <div id="kb-panel">
+    <div id="kb-tabs">
+      <button class="tab-btn active" onclick="switchTab('main')">⌨ Full PC</button>
+      <button class="tab-btn" onclick="switchTab('nav')">🧭 Nav / F-keys</button>
+      <button class="tab-btn" onclick="switchTab('num')">🔢 Numpad</button>
+    </div>
+
+    <!-- MAIN KEYBOARD -->
+    <div id="view-main" class="kb-view active kb-section">
+      <!-- Row: numbers -->
+      <div class="kb-row">
+        <div class="k w-1h fn-key mod" data-key="Escape" data-code="Escape">Esc</div>
+        <div class="k w-1" data-shift="~" data-key="`" data-code="Backquote"><div class="top">~</div><div class="bot">`</div></div>
+        <div class="k w-1" data-shift="!" data-key="1" data-code="Digit1"><div class="top">!</div><div class="bot">1</div></div>
+        <div class="k w-1" data-shift="@" data-key="2" data-code="Digit2"><div class="top">@</div><div class="bot">2</div></div>
+        <div class="k w-1" data-shift="#" data-key="3" data-code="Digit3"><div class="top">#</div><div class="bot">3</div></div>
+        <div class="k w-1" data-shift="$" data-key="4" data-code="Digit4"><div class="top">$</div><div class="bot">4</div></div>
+        <div class="k w-1" data-shift="%" data-key="5" data-code="Digit5"><div class="top">%</div><div class="bot">5</div></div>
+        <div class="k w-1" data-shift="^" data-key="6" data-code="Digit6"><div class="top">^</div><div class="bot">6</div></div>
+        <div class="k w-1" data-shift="&amp;" data-key="7" data-code="Digit7"><div class="top">&amp;</div><div class="bot">7</div></div>
+        <div class="k w-1" data-shift="*" data-key="8" data-code="Digit8"><div class="top">*</div><div class="bot">8</div></div>
+        <div class="k w-1" data-shift="(" data-key="9" data-code="Digit9"><div class="top">(</div><div class="bot">9</div></div>
+        <div class="k w-1" data-shift=")" data-key="0" data-code="Digit0"><div class="top">)</div><div class="bot">0</div></div>
+        <div class="k w-1" data-shift="_" data-key="-" data-code="Minus"><div class="top">_</div><div class="bot">-</div></div>
+        <div class="k w-1" data-shift="+" data-key="=" data-code="Equal"><div class="top">+</div><div class="bot">=</div></div>
+        <div class="k w-2h backspace" data-key="Backspace" data-code="Backspace">⌫ BS</div>
+      </div>
+      <!-- Row: QWERTY -->
+      <div class="kb-row">
+        <div class="k w-1h mod" data-key="Tab" data-code="Tab">Tab ↹</div>
+        <div class="k w-1" data-key="q" data-code="KeyQ">Q</div>
+        <div class="k w-1" data-key="w" data-code="KeyW">W</div>
+        <div class="k w-1" data-key="e" data-code="KeyE">E</div>
+        <div class="k w-1" data-key="r" data-code="KeyR">R</div>
+        <div class="k w-1" data-key="t" data-code="KeyT">T</div>
+        <div class="k w-1" data-key="y" data-code="KeyY">Y</div>
+        <div class="k w-1" data-key="u" data-code="KeyU">U</div>
+        <div class="k w-1" data-key="i" data-code="KeyI">I</div>
+        <div class="k w-1" data-key="o" data-code="KeyO">O</div>
+        <div class="k w-1" data-key="p" data-code="KeyP">P</div>
+        <div class="k w-1" data-shift="{" data-key="[" data-code="BracketLeft"><div class="top">{</div><div class="bot">[</div></div>
+        <div class="k w-1" data-shift="}" data-key="]" data-code="BracketRight"><div class="top">}</div><div class="bot">]</div></div>
+        <div class="k w-2" data-shift="|" data-key="\\" data-code="Backslash"><div class="top">|</div><div class="bot">\\</div></div>
+      </div>
+      <!-- Row: ASDF -->
+      <div class="kb-row">
+        <div class="k w-2 mod" id="key-caps" data-key="CapsLock" data-code="CapsLock">Caps ⇪</div>
+        <div class="k w-1" data-key="a" data-code="KeyA">A</div>
+        <div class="k w-1" data-key="s" data-code="KeyS">S</div>
+        <div class="k w-1" data-key="d" data-code="KeyD">D</div>
+        <div class="k w-1" data-key="f" data-code="KeyF">F</div>
+        <div class="k w-1" data-key="g" data-code="KeyG">G</div>
+        <div class="k w-1" data-key="h" data-code="KeyH">H</div>
+        <div class="k w-1" data-key="j" data-code="KeyJ">J</div>
+        <div class="k w-1" data-key="k" data-code="KeyK">K</div>
+        <div class="k w-1" data-key="l" data-code="KeyL">L</div>
+        <div class="k w-1" data-shift=":" data-key=";" data-code="Semicolon"><div class="top">:</div><div class="bot">;</div></div>
+        <div class="k w-1" data-shift="\"" data-key="'" data-code="Quote"><div class="top">"</div><div class="bot">'</div></div>
+        <div class="k w-3 enter" data-key="Enter" data-code="Enter">Enter ↵</div>
+      </div>
+      <!-- Row: ZXCV -->
+      <div class="kb-row">
+        <div class="k w-3 mod" id="key-lshift" data-key="Shift" data-mod="shift">⇧ Shift</div>
+        <div class="k w-1" data-key="z" data-code="KeyZ">Z</div>
+        <div class="k w-1" data-key="x" data-code="KeyX">X</div>
+        <div class="k w-1" data-key="c" data-code="KeyC">C</div>
+        <div class="k w-1" data-key="v" data-code="KeyV">V</div>
+        <div class="k w-1" data-key="b" data-code="KeyB">B</div>
+        <div class="k w-1" data-key="n" data-code="KeyN">N</div>
+        <div class="k w-1" data-key="m" data-code="KeyM">M</div>
+        <div class="k w-1" data-shift="&lt;" data-key="," data-code="Comma"><div class="top">&lt;</div><div class="bot">,</div></div>
+        <div class="k w-1" data-shift="&gt;" data-key="." data-code="Period"><div class="top">&gt;</div><div class="bot">.</div></div>
+        <div class="k w-1" data-shift="?" data-key="/" data-code="Slash"><div class="top">?</div><div class="bot">/</div></div>
+        <div class="k w-4 mod" id="key-rshift" data-key="Shift" data-mod="shift">Shift ⇧</div>
+      </div>
+      <!-- Row: CTRL/ALT/SPACE -->
+      <div class="kb-row">
+        <div class="k w-2 mod" id="key-lctrl" data-key="Control" data-mod="ctrl">Ctrl</div>
+        <div class="k w-1h mod" data-key="Meta" data-code="MetaLeft">⊞ Win</div>
+        <div class="k w-1h mod" id="key-lalt" data-key="Alt" data-mod="alt">Alt</div>
+        <div class="k space mod" data-key=" " data-code="Space">SPACE</div>
+        <div class="k w-1h mod" id="key-ralt" data-key="Alt" data-mod="alt">Alt</div>
+        <div class="k w-1h mod" data-key="Meta" data-code="MetaRight">⊞ Win</div>
+        <div class="k w-1h mod" data-key="ContextMenu" data-code="ContextMenu">☰</div>
+        <div class="k w-2 mod" id="key-rctrl" data-key="Control" data-mod="ctrl">Ctrl</div>
+      </div>
+    </div>
+
+    <!-- NAV + FUNCTION KEYS -->
+    <div id="view-nav" class="kb-view kb-section">
+      <!-- F-keys -->
+      <div class="kb-row">
+        <div class="k w-2h fn-key mod" data-key="Escape" data-code="Escape">Esc</div>
+        <div class="k w-1h fn-key" data-key="F1"  data-code="F1">F1</div>
+        <div class="k w-1h fn-key" data-key="F2"  data-code="F2">F2</div>
+        <div class="k w-1h fn-key" data-key="F3"  data-code="F3">F3</div>
+        <div class="k w-1h fn-key" data-key="F4"  data-code="F4">F4</div>
+        <div class="k w-1h fn-key" data-key="F5"  data-code="F5">F5</div>
+        <div class="k w-1h fn-key" data-key="F6"  data-code="F6">F6</div>
+        <div class="k w-1h fn-key" data-key="F7"  data-code="F7">F7</div>
+        <div class="k w-1h fn-key" data-key="F8"  data-code="F8">F8</div>
+        <div class="k w-1h fn-key" data-key="F9"  data-code="F9">F9</div>
+        <div class="k w-1h fn-key" data-key="F10" data-code="F10">F10</div>
+        <div class="k w-1h fn-key" data-key="F11" data-code="F11">F11</div>
+        <div class="k w-1h fn-key" data-key="F12" data-code="F12">F12</div>
+      </div>
+      <!-- System keys -->
+      <div class="kb-row">
+        <div class="k w-2 fn-key mod" data-key="PrintScreen" data-code="PrintScreen">PrtSc</div>
+        <div class="k w-2 fn-key mod" data-key="ScrollLock"  data-code="ScrollLock">ScrLk</div>
+        <div class="k w-2 fn-key mod" data-key="Pause"       data-code="Pause">Pause</div>
+      </div>
+      <!-- Insert / Delete cluster -->
+      <div class="kb-row">
+        <div class="k w-2 fn-key" data-key="Insert" data-code="Insert">Ins</div>
+        <div class="k w-2 fn-key" data-key="Home"   data-code="Home">Home</div>
+        <div class="k w-2 fn-key" data-key="PageUp" data-code="PageUp">PgUp</div>
+      </div>
+      <div class="kb-row">
+        <div class="k w-2 fn-key backspace" data-key="Delete" data-code="Delete">Del</div>
+        <div class="k w-2 fn-key" data-key="End"      data-code="End">End</div>
+        <div class="k w-2 fn-key" data-key="PageDown" data-code="PageDown">PgDn</div>
+      </div>
+      <!-- Arrow keys -->
+      <div class="kb-row">
+        <div class="k w-2 fn-key" data-key="ArrowUp" data-code="ArrowUp">↑</div>
+      </div>
+      <div class="kb-row">
+        <div class="k w-2 fn-key" data-key="ArrowLeft"  data-code="ArrowLeft">←</div>
+        <div class="k w-2 fn-key" data-key="ArrowDown"  data-code="ArrowDown">↓</div>
+        <div class="k w-2 fn-key" data-key="ArrowRight" data-code="ArrowRight">→</div>
+      </div>
+    </div>
+
+    <!-- NUMPAD -->
+    <div id="view-num" class="kb-view kb-section">
+      <div class="kb-row">
+        <div class="k w-2 fn-key mod" data-key="NumLock" data-code="NumLock">NumLk</div>
+        <div class="k w-2 fn-key" data-key="/" data-code="NumpadDivide">/ ÷</div>
+        <div class="k w-2 fn-key" data-key="*" data-code="NumpadMultiply">* ×</div>
+        <div class="k w-2 fn-key backspace" data-key="-" data-code="NumpadSubtract">- −</div>
+      </div>
+      <div class="kb-row">
+        <div class="k w-2" data-key="7" data-code="Numpad7"><div class="top">Home</div><div class="bot">7</div></div>
+        <div class="k w-2" data-key="8" data-code="Numpad8"><div class="top">↑</div><div class="bot">8</div></div>
+        <div class="k w-2" data-key="9" data-code="Numpad9"><div class="top">PgUp</div><div class="bot">9</div></div>
+        <div class="k w-2 fn-key" style="height:76px;align-self:start" data-key="+" data-code="NumpadAdd">+ ＋</div>
+      </div>
+      <div class="kb-row">
+        <div class="k w-2" data-key="4" data-code="Numpad4"><div class="top">←</div><div class="bot">4</div></div>
+        <div class="k w-2" data-key="5" data-code="Numpad5"><div class="top">·</div><div class="bot">5</div></div>
+        <div class="k w-2" data-key="6" data-code="Numpad6"><div class="top">→</div><div class="bot">6</div></div>
+      </div>
+      <div class="kb-row">
+        <div class="k w-2" data-key="1" data-code="Numpad1"><div class="top">End</div><div class="bot">1</div></div>
+        <div class="k w-2" data-key="2" data-code="Numpad2"><div class="top">↓</div><div class="bot">2</div></div>
+        <div class="k w-2" data-key="3" data-code="Numpad3"><div class="top">PgDn</div><div class="bot">3</div></div>
+        <div class="k w-2 enter" style="height:76px;align-self:start" data-key="Enter" data-code="NumpadEnter">Enter ↵</div>
+      </div>
+      <div class="kb-row">
+        <div class="k" style="width:68px" data-key="0" data-code="Numpad0"><div class="top">Ins</div><div class="bot">0</div></div>
+        <div class="k w-2" data-key="." data-code="NumpadDecimal"><div class="top">Del</div><div class="bot">.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INSTALL BANNER -->
+<div id="install-banner">
+  <div class="install-text">
+    <strong>📲 Cài vào màn hình chính</strong>
+    Dùng như app thật, không cần mạng
+  </div>
+  <div class="install-btns">
+    <button class="btn-install" id="btn-install">Cài ngay</button>
+    <button class="btn-dismiss" onclick="dismissInstall()">✕</button>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────
+let kbVisible = true;
+let mods = { shift: false, ctrl: false, alt: false, caps: false };
+let textContent = '';
+let deferredPrompt = null;
+
+// ─── PWA INSTALL ─────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  setTimeout(() => document.getElementById('install-banner').classList.add('show'), 2000);
+});
+
+document.getElementById('btn-install').onclick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  dismissInstall();
+};
+
+function dismissInstall() {
+  document.getElementById('install-banner').classList.remove('show');
+}
+
+window.addEventListener('appinstalled', () => dismissInstall());
+
+// ─── TOGGLE KEYBOARD ─────────────────────────────────────────────
+function toggleKeyboard() {
+  kbVisible = !kbVisible;
+  document.getElementById('kb-panel').classList.toggle('hidden', !kbVisible);
+  document.getElementById('toggle-dot').classList.toggle('off', !kbVisible);
+  document.getElementById('toggle-label').textContent = kbVisible ? 'BẬT' : 'TẮT';
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.kb-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ─── TEXT DISPLAY ─────────────────────────────────────────────────
+function updateDisplay() {
+  document.getElementById('text-content').textContent = textContent;
+}
+
+function clearText() {
+  textContent = '';
+  updateDisplay();
+}
+
+// ─── KEY LOGIC ────────────────────────────────────────────────────
+function processKey(key, code, isMod, modType) {
+  // Handle modifier keys (toggle)
+  if (isMod) {
+    if (modType === 'shift') {
+      mods.shift = !mods.shift;
+      document.querySelectorAll('[data-mod="shift"]').forEach(el => el.classList.toggle('active-mod', mods.shift));
+    } else if (modType === 'ctrl') {
+      mods.ctrl = !mods.ctrl;
+      document.querySelectorAll('[data-mod="ctrl"]').forEach(el => el.classList.toggle('active-mod', mods.ctrl));
+    } else if (modType === 'alt') {
+      mods.alt = !mods.alt;
+      document.querySelectorAll('[data-mod="alt"]').forEach(el => el.classList.toggle('active-mod', mods.alt));
+    }
+    logKey((modType || key).toUpperCase());
+    return;
+  }
+
+  // CapsLock toggle
+  if (key === 'CapsLock') {
+    mods.caps = !mods.caps;
+    document.getElementById('key-caps').classList.toggle('active-mod', mods.caps);
+    logKey('CAPSLOCK ' + (mods.caps ? '🔒' : '🔓'));
+    return;
+  }
+
+  // Backspace
+  if (key === 'Backspace') {
+    textContent = textContent.slice(0, -1);
+    updateDisplay();
+    logKey('⌫ Backspace');
+    return;
+  }
+
+  // Enter
+  if (key === 'Enter') {
+    textContent += '\n';
+    updateDisplay();
+    logKey('↵ Enter');
+    return;
+  }
+
+  // Tab
+  if (key === 'Tab') {
+    textContent += '    ';
+    updateDisplay();
+    logKey('↹ Tab');
+    return;
+  }
+
+  // Delete, Navigation, Function keys - just log
+  const noCharKeys = ['Delete','Insert','Home','End','PageUp','PageDown',
+    'ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+    'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12',
+    'Escape','PrintScreen','ScrollLock','Pause','NumLock','Meta','ContextMenu'];
+  if (noCharKeys.includes(key)) {
+    logKey(key);
+    return;
+  }
+
+  // Ctrl / Alt combos - just log
+  if (mods.ctrl || mods.alt) {
+    const combo = [(mods.ctrl?'Ctrl':''), (mods.alt?'Alt':''), key.toUpperCase()].filter(Boolean).join('+');
+    logKey(combo);
+    // Auto release
+    mods.ctrl = false; mods.alt = false; mods.shift = false;
+    document.querySelectorAll('[data-mod]').forEach(el => el.classList.remove('active-mod'));
+    return;
+  }
+
+  // Regular character
+  let char = key;
+  const isLetter = char.length === 1 && char.match(/[a-z]/i);
+  if (isLetter) {
+    const upper = mods.shift !== mods.caps; // XOR
+    char = upper ? char.toUpperCase() : char.toLowerCase();
+  } else if (mods.shift) {
+    // Use shift value from data attribute (handled in click)
+  }
+
+  textContent += char;
+  updateDisplay();
+  logKey(char === ' ' ? 'SPACE' : char);
+
+  // Auto-release shift after one char
+  if (mods.shift) {
+    mods.shift = false;
+    document.querySelectorAll('[data-mod="shift"]').forEach(el => el.classList.remove('active-mod'));
+  }
+}
+
+function logKey(label) {
+  const log = document.getElementById('key-log');
+  log.innerHTML = `Phím: <span class="key-badge">${escapeHtml(label)}</span>`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── BIND ALL KEYS ────────────────────────────────────────────────
+document.querySelectorAll('.k').forEach(el => {
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    el.classList.add('pressed');
+
+    const key     = el.dataset.key || '';
+    const code    = el.dataset.code || '';
+    const shiftVal = el.dataset.shift || null;
+    const modType  = el.dataset.mod || null;
+    const isMod    = !!modType;
+
+    // If shift active and key has shift value, use that
+    let resolvedKey = key;
+    if (mods.shift && shiftVal && !isMod) {
+      resolvedKey = shiftVal;
+    }
+
+    processKey(resolvedKey, code, isMod, modType);
+
+    // Try firing real KeyboardEvent (works in some contexts)
+    try {
+      const kOpts = { key: resolvedKey, code: code, bubbles: true,
+        shiftKey: mods.shift, ctrlKey: mods.ctrl, altKey: mods.alt };
+      document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', kOpts));
+      document.activeElement?.dispatchEvent(new KeyboardEvent('keyup', kOpts));
+      if (resolvedKey.length === 1) {
+        document.activeElement?.dispatchEvent(new InputEvent('input', { data: resolvedKey, inputType: 'insertText', bubbles: true }));
+      }
+    } catch(_) {}
+  });
+
+  el.addEventListener('pointerup', () => el.classList.remove('pressed'));
+  el.addEventListener('pointerleave', () => el.classList.remove('pressed'));
+});
+
+// ─── PHYSICAL KEYBOARD (on desktop) ──────────────────────────────
+document.addEventListener('keydown', e => {
+  const el = document.querySelector(`[data-code="${e.code}"]`);
+  if (el) { el.classList.add('pressed'); setTimeout(()=>el.classList.remove('pressed'), 150); }
+});
+</script>
+</body>
+</html>
